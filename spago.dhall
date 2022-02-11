@@ -20,8 +20,8 @@ to generate this file without the comments in this block.
   , "prelude"
   , "psci-support"
   , "strings"
-  , "unordered-collections"
+  , "ordered-collections"
   ]
 , packages = ./packages.dhall
-, sources = [ "src/**/*.purs", "test/**/*.purs" ]
+, sources = [ "src/**/*.purs" ]
 }

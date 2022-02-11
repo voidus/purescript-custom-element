@@ -8,7 +8,7 @@ import Data.Show.Generic as GS
 import Data.String as String
 import Effect (Effect)
 import Effect.Console (log)
-import Data.Maybe (Maybe, fromMaybe)
+import Data.Maybe (Maybe)
 import CustomElement (define, class ObservedAttribute)
 
 data Attribute

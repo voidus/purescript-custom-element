@@ -10,13 +10,14 @@ module CustomElement (
 
 import Prelude
 
-import Data.Maybe (Maybe, fromJust)
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Partial.Unsafe (unsafePartial)
-import Data.HashMap as Map
+import Data.Tuple(Tuple(Tuple))
+import Data.Map as Map
+import Partial (crash)
 import Type.Proxy (Proxy)
-import Data.Enum (class BoundedEnum, upFromIncluding)
-import Data.Bounded (bottom)
 import Effect (Effect)
+import Effect.Console (log)
 
 
 type Callbacks observedAttributes = {
@@ -39,7 +40,6 @@ class ObservedAttribute a where
 allStrings :: forall a. ObservedAttribute a => Proxy a -> Array String
 allStrings _ = map (toString :: a -> String) all
 
-
 foreign import define_
     :: String
     -> Array String
@@ -60,12 +60,14 @@ define
 define name observedAttrsProxy spec
     = define_ name (allStrings observedAttrsProxy) updatedSpec
     where 
-      attrMap :: Map.HashMap String observedAttributes
-      attrMap = Map.fromArrayBy toString identity all
+      attrMap :: Map.Map String observedAttributes
+      attrMap = Map.fromFoldable $ map (\a -> Tuple (toString a) a) all
 
       wrappedAttributeChanged :: String -> Maybe String -> Maybe String -> Effect Unit
-      wrappedAttributeChanged attrString =
-          spec.callbacks.attributeChanged (unsafePartial $ fromJust $ Map.lookup attrString attrMap)
+      wrappedAttributeChanged attrString o n =
+          spec.callbacks.attributeChanged attribute o n
+          where
+            attribute = Map.lookup attrString attrMap # unsafePartial fromJust
 
       updatedSpec :: Spec String
       updatedSpec = spec { callbacks { attributeChanged = wrappedAttributeChanged } }

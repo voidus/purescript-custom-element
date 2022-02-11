@@ -12,7 +12,7 @@ exports.define_ = name => observedAttributes => spec => () => {
         connectedCallback() { return  spec.callbacks.connected() };
         disconnectedCallback() { return  spec.callbacks.disconnected() };
         adoptedCallback() { return  spec.callbacks.adopted() };
-        attributeChangedCallback() { return  spec.callbacks.attributeChanged.apply(null, arguments) };
+        attributeChangedCallback(name, old, new_) { return spec.callbacks.attributeChanged(name)(old)(new_)() };
     }
     customElements.define(name, Element);
 }
