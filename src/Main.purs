@@ -9,7 +9,10 @@ import Data.String as String
 import Effect (Effect)
 import Effect.Console (log)
 import Data.Maybe (Maybe)
-import CustomElement (define, class ObservedAttribute)
+import CustomElement
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.State.Trans (StateT)
+import Control.Monad.State.Class as S
 
 data Attribute
     = Foo
@@ -22,20 +25,34 @@ instance observedAttributeAttribute :: ObservedAttribute Attribute where
     toString = show >>> String.toLower
     all = [Foo, Bar]
 
-attributeChanged :: Attribute -> Maybe String -> Maybe String -> Effect Unit
+type State = {
+    blurbs :: Int
+}
+
+initial :: State
+initial = {
+    blurbs: 42
+}
+
+attributeChanged :: Attribute -> Maybe String -> Maybe String -> MCustomElement State
 attributeChanged attr old new =
-    case attr of
+    lift $ case attr of
         Foo -> log "fuuuuu"
-        Bar -> log "bäh"
+        Bar -> log "babbrbabrbababbabab"
 
 
 main :: Effect Unit
-main = do
-    define "foo-bar" (Proxy :: Proxy Attribute) {
+main =
+    define
+    "foo-bar"
+    (Proxy :: Proxy Attribute) {
+        initial: initial,
         callbacks: {
-            connected: log "connected",
-            disconnected: log "disconnected",
-            adopted: log "adopted",
+            connected: do
+               S.modify_ (\s -> s { blurbs = 0 })
+               lift $ log "connected",
+            disconnected: lift $ log "disconnected",
+            adopted: lift $ log "adopted",
             attributeChanged: attributeChanged
         }
     }

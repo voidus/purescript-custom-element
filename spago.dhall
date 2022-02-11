@@ -14,13 +14,14 @@ to generate this file without the comments in this block.
 , dependencies =
   [ "console"
   , "effect"
-  , "enums"
   , "maybe"
+  , "ordered-collections"
   , "partial"
   , "prelude"
   , "psci-support"
   , "strings"
-  , "ordered-collections"
+  , "transformers"
+  , "tuples"
   ]
 , packages = ./packages.dhall
 , sources = [ "src/**/*.purs" ]

@@ -1,34 +1,32 @@
-module CustomElement (
-    class ObservedAttribute,
-    toString,
-    all,
-
-    Callbacks,
-    Spec,
-    define
-    ) where
+module CustomElement where
 
 import Prelude
 
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
 import Partial.Unsafe (unsafePartial)
-import Data.Tuple(Tuple(Tuple))
+import Data.Tuple(Tuple(Tuple), fst, snd)
 import Data.Map as Map
+import Data.Map (Map)
+import Control.Monad.Identity.Trans (IdentityT)
 import Partial (crash)
+import Control.Monad.State.Trans (StateT, execStateT)
 import Type.Proxy (Proxy)
 import Effect (Effect)
 import Effect.Console (log)
 
 
-type Callbacks observedAttributes = {
-    connected :: Effect Unit,
-    disconnected :: Effect Unit,
-    adopted :: Effect Unit,
-    attributeChanged :: observedAttributes -> Maybe String -> Maybe String -> Effect Unit
+type MCustomElement state = StateT state Effect Unit
+
+type Callbacks state observedAttributes = {
+    connected :: MCustomElement state,
+    disconnected :: MCustomElement state,
+    adopted :: MCustomElement state,
+    attributeChanged :: observedAttributes -> Maybe String -> Maybe String -> MCustomElement state
 }
 
-type Spec observedAttributes = {
-    callbacks :: Callbacks observedAttributes
+type Spec state observedAttributes = {
+    initial :: state,
+    callbacks :: Callbacks state observedAttributes
 }
 
 class ObservedAttribute a where
@@ -40,34 +38,53 @@ class ObservedAttribute a where
 allStrings :: forall a. ObservedAttribute a => Proxy a -> Array String
 allStrings _ = map (toString :: a -> String) all
 
+
+type Helpers = {
+    -- specialized to avoid the headache of passing the typeclass dict in javascript
+    execStateT :: forall s a. StateT s Effect a -> s -> Effect s
+}
+helpers :: Helpers
+helpers = {
+    execStateT
+}
+
 foreign import define_
-    :: String
+    :: forall state observedAttributes
+
+     . Helpers
+    -> String
     -> Array String
-    -> Spec String
+    -> Spec state observedAttributes
     -> Effect Unit
 
+
 define
-    :: forall observedAttributes
+    :: forall state observedAttributes
 
      . ObservedAttribute observedAttributes
     => Show observedAttributes
 
     => String
     -> Proxy observedAttributes
-    -> Spec observedAttributes
+    -> Spec state observedAttributes
 
     -> Effect Unit
-define name observedAttrsProxy spec
-    = define_ name (allStrings observedAttrsProxy) updatedSpec
-    where 
-      attrMap :: Map.Map String observedAttributes
-      attrMap = Map.fromFoldable $ map (\a -> Tuple (toString a) a) all
+define name observedAttrsProxy spec =
+    let
+        observedAttributes :: Array String
+        observedAttributes = allStrings observedAttrsProxy
 
-      wrappedAttributeChanged :: String -> Maybe String -> Maybe String -> Effect Unit
-      wrappedAttributeChanged attrString o n =
-          spec.callbacks.attributeChanged attribute o n
-          where
-            attribute = Map.lookup attrString attrMap # unsafePartial fromJust
+        attributesByString :: Map String observedAttributes
+        attributesByString =
+            map (\attr -> Tuple (toString attr) attr) all
+            # Map.fromFoldable
 
-      updatedSpec :: Spec String
-      updatedSpec = spec { callbacks { attributeChanged = wrappedAttributeChanged } }
+        attributeChanged :: String -> Maybe String -> Maybe String -> MCustomElement state
+        attributeChanged attrString o n =
+            spec.callbacks.attributeChanged attribute o n
+            where
+                attribute = Map.lookup attrString attributesByString # unsafePartial fromJust
+
+        wrappedSpec = spec { callbacks { attributeChanged = attributeChanged } }
+     in
+        define_ helpers name observedAttributes wrappedSpec
