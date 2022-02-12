@@ -22,6 +22,7 @@ to generate this file without the comments in this block.
   , "strings"
   , "transformers"
   , "tuples"
+  , "web-dom"
   , "web-html"
   ]
 , packages = ./packages.dhall

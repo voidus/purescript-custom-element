@@ -3,8 +3,7 @@ module CustomElement where
 import Prelude
 
 import Control.Monad.Identity.Trans (IdentityT)
-import Control.Monad.State.Class (class MonadState)
-import Control.Monad.State.Trans (StateT, execStateT)
+import Control.Monad.State (class MonadState, StateT, execStateT)
 import Data.Map (Map)
 import Data.Map as Map
 import Data.Maybe (Maybe(Just, Nothing), fromJust)
@@ -15,9 +14,30 @@ import Effect.Console (log)
 import Partial (crash)
 import Partial.Unsafe (unsafePartial)
 import Type.Proxy (Proxy)
+import Web.HTML (HTMLElement)
+import Control.Monad.Reader (class MonadAsk, ReaderT, runReaderT)
 
 
-newtype MCustomElement state a = MCustomElement (StateT state Effect a)
+newtype MCustomElement state a
+    = MCustomElement (
+        ReaderT HTMLElement (
+        StateT state
+        Effect
+        ) a
+    )
+
+type RunMCustomElement
+    = forall state
+    . HTMLElement
+   -> state
+   -> MCustomElement state Unit
+   -> Effect state
+
+runMCustomElement :: RunMCustomElement
+runMCustomElement element state (MCustomElement m) =
+    m
+    # flip runReaderT element
+    # flip execStateT state
 
 derive newtype instance mCustomElement_Functor :: Functor (MCustomElement state)
 derive newtype instance mCustomElement_Apply :: Apply (MCustomElement state)
@@ -26,6 +46,7 @@ derive newtype instance mCustomElement_Monad :: Monad (MCustomElement state)
 derive newtype instance mCustomElement_MonadEffect :: MonadEffect (MCustomElement state)
 derive newtype instance mCustomElement_Bind :: Bind (MCustomElement state)
 derive newtype instance mCustomElement_MonadState :: MonadState state (MCustomElement state)
+derive newtype instance mCustomElement_MonadAsk :: MonadAsk HTMLElement (MCustomElement state)
 
 type Callbacks state observedAttributes = {
     connected :: MCustomElement state Unit,
@@ -33,10 +54,6 @@ type Callbacks state observedAttributes = {
     adopted :: MCustomElement state Unit,
     attributeChanged :: observedAttributes -> Maybe String -> Maybe String -> MCustomElement state Unit
 }
-
-type RunMCustomElement = forall state. state -> MCustomElement state Unit -> Effect state
-runMCustomElement :: RunMCustomElement
-runMCustomElement state (MCustomElement m) = execStateT m state
 
 
 type Spec state observedAttributes = {

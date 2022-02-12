@@ -3,6 +3,10 @@
 exports.define_ = runMonad => name => observedAttributes => spec => () => {
     class Element extends HTMLElement {
         static get observedAttributes() { return observedAttributes };
+
+        _runMonad(m) {
+            this._state = runMonad(this)(this._state)(m)()
+        }
         //TODO reflected properties
         constructor() {
             super();
@@ -11,17 +15,17 @@ exports.define_ = runMonad => name => observedAttributes => spec => () => {
             // TODO _internals
         }
         connectedCallback() {
-            this._state = runMonad(this._state)(spec.callbacks.connected)();
+            this._runMonad(spec.callbacks.connected)
         };
         disconnectedCallback() {
-            this._state = runMonad(this._state)(spec.callbacks.disconnected)();
+            this._runMonad(spec.callbacks.disconnected)
         };
         adoptedCallback() {
-            this._state = runMonad(this._state)(spec.callbacks.adopted)();
+            this._runMonad(spec.callbacks.adopted)
         };
         attributeChangedCallback(name, old, new_) {
             const m = spec.callbacks.attributeChanged(name)(old)(new_)
-            this.state = runMonad(this._state)(m)();
+            this._runMonad(m);
         };
     }
     customElements.define(name, Element);

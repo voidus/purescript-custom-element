@@ -8,12 +8,15 @@ import Data.Show.Generic as GS
 import Data.String as String
 import Effect (Effect)
 import Effect.Console (log)
+import Control.Monad.Reader (ask)
 import Data.Maybe (Maybe)
 import Effect.Class (liftEffect)
 import CustomElement
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.State.Trans (StateT)
 import Control.Monad.State.Class as S
+import Web.HTML.HTMLElement (toNode)
+import Web.DOM.Node (setTextContent)
 
 data Attribute
     = Foo
@@ -36,7 +39,10 @@ initial = {
 }
 
 attributeChanged :: Attribute -> Maybe String -> Maybe String -> MCustomElement State Unit
-attributeChanged attr old new =
+attributeChanged attr old new = do
+    { blurbs } <- S.modify \s -> s { blurbs = s.blurbs + 1 }
+    this <- ask
+    liftEffect $ setTextContent ("Wow! " <> show blurbs <> " blurbs!") (toNode this)
     liftEffect $ case attr of
         Foo -> log "fuuuuu"
         Bar -> log "babbrbabrbababbabab"
@@ -49,9 +55,7 @@ main =
     (Proxy :: Proxy Attribute) {
         initial: initial,
         callbacks: {
-            connected: do
-               S.modify_ (\s -> s { blurbs = 0 })
-               liftEffect $ log "connected",
+            connected: liftEffect $ log "connected",
             disconnected: liftEffect $ log "disconnected",
             adopted: liftEffect $ log "adopted",
             attributeChanged: attributeChanged
