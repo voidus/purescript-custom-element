@@ -1,9 +1,6 @@
 "use strict";
 
-exports.define_ = helpers => name => observedAttributes => spec => () => {
-    const h = helpers;
-    function execStateT(f, s) { return h.execStateT(f)(s)() }
-
+exports.define_ = runMonad => name => observedAttributes => spec => () => {
     class Element extends HTMLElement {
         static get observedAttributes() { return observedAttributes };
         //TODO reflected properties
@@ -14,19 +11,17 @@ exports.define_ = helpers => name => observedAttributes => spec => () => {
             // TODO _internals
         }
         connectedCallback() {
-            this._state = execStateT(spec.callbacks.connected, this._state);
+            this._state = runMonad(this._state)(spec.callbacks.connected)();
         };
         disconnectedCallback() {
-            this._state = execStateT(spec.callbacks.disconnected, this._state);
+            this._state = runMonad(this._state)(spec.callbacks.disconnected)();
         };
         adoptedCallback() {
-            this._state = execStateT(spec.callbacks.adopted, this._state);
+            this._state = runMonad(this._state)(spec.callbacks.adopted)();
         };
         attributeChangedCallback(name, old, new_) {
-            this.state = execStateT(
-                spec.callbacks.attributeChanged(name)(old)(new_),
-                this._state
-            );
+            const m = spec.callbacks.attributeChanged(name)(old)(new_)
+            this.state = runMonad(this._state)(m)();
         };
     }
     customElements.define(name, Element);

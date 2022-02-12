@@ -17,6 +17,10 @@ import Effect.Console (log)
 
 type MCustomElement state = StateT state Effect Unit
 
+type RunMCustomElement = forall state. state -> MCustomElement state -> Effect state
+runMCustomElement :: RunMCustomElement
+runMCustomElement state m = execStateT m state
+
 type Callbacks state observedAttributes = {
     connected :: MCustomElement state,
     disconnected :: MCustomElement state,
@@ -39,19 +43,10 @@ allStrings :: forall a. ObservedAttribute a => Proxy a -> Array String
 allStrings _ = map (toString :: a -> String) all
 
 
-type Helpers = {
-    -- specialized to avoid the headache of passing the typeclass dict in javascript
-    execStateT :: forall s a. StateT s Effect a -> s -> Effect s
-}
-helpers :: Helpers
-helpers = {
-    execStateT
-}
-
 foreign import define_
     :: forall state observedAttributes
 
-     . Helpers
+     . RunMCustomElement
     -> String
     -> Array String
     -> Spec state observedAttributes
@@ -87,4 +82,4 @@ define name observedAttrsProxy spec =
 
         wrappedSpec = spec { callbacks { attributeChanged = attributeChanged } }
      in
-        define_ helpers name observedAttributes wrappedSpec
+        define_ runMCustomElement name observedAttributes wrappedSpec
