@@ -9,6 +9,7 @@ import Data.String as String
 import Effect (Effect)
 import Effect.Console (log)
 import Data.Maybe (Maybe)
+import Effect.Class (liftEffect)
 import CustomElement
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.State.Trans (StateT)
@@ -34,9 +35,9 @@ initial = {
     blurbs: 42
 }
 
-attributeChanged :: Attribute -> Maybe String -> Maybe String -> MCustomElement State
+attributeChanged :: Attribute -> Maybe String -> Maybe String -> MCustomElement State Unit
 attributeChanged attr old new =
-    lift $ case attr of
+    liftEffect $ case attr of
         Foo -> log "fuuuuu"
         Bar -> log "babbrbabrbababbabab"
 
@@ -50,9 +51,9 @@ main =
         callbacks: {
             connected: do
                S.modify_ (\s -> s { blurbs = 0 })
-               lift $ log "connected",
-            disconnected: lift $ log "disconnected",
-            adopted: lift $ log "adopted",
+               liftEffect $ log "connected",
+            disconnected: liftEffect $ log "disconnected",
+            adopted: liftEffect $ log "adopted",
             attributeChanged: attributeChanged
         }
     }

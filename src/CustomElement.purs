@@ -2,31 +2,42 @@ module CustomElement where
 
 import Prelude
 
-import Data.Maybe (Maybe(Just, Nothing), fromJust)
-import Partial.Unsafe (unsafePartial)
-import Data.Tuple(Tuple(Tuple), fst, snd)
-import Data.Map as Map
-import Data.Map (Map)
 import Control.Monad.Identity.Trans (IdentityT)
-import Partial (crash)
+import Control.Monad.State.Class (class MonadState)
 import Control.Monad.State.Trans (StateT, execStateT)
-import Type.Proxy (Proxy)
+import Data.Map (Map)
+import Data.Map as Map
+import Data.Maybe (Maybe(Just, Nothing), fromJust)
+import Data.Tuple(Tuple(Tuple), fst, snd)
 import Effect (Effect)
+import Effect.Class (class MonadEffect)
 import Effect.Console (log)
+import Partial (crash)
+import Partial.Unsafe (unsafePartial)
+import Type.Proxy (Proxy)
 
 
-type MCustomElement state = StateT state Effect Unit
+newtype MCustomElement state a = MCustomElement (StateT state Effect a)
 
-type RunMCustomElement = forall state. state -> MCustomElement state -> Effect state
-runMCustomElement :: RunMCustomElement
-runMCustomElement state m = execStateT m state
+derive newtype instance mCustomElement_Functor :: Functor (MCustomElement state)
+derive newtype instance mCustomElement_Apply :: Apply (MCustomElement state)
+derive newtype instance mCustomElement_Applicative :: Applicative (MCustomElement state)
+derive newtype instance mCustomElement_Monad :: Monad (MCustomElement state)
+derive newtype instance mCustomElement_MonadEffect :: MonadEffect (MCustomElement state)
+derive newtype instance mCustomElement_Bind :: Bind (MCustomElement state)
+derive newtype instance mCustomElement_MonadState :: MonadState state (MCustomElement state)
 
 type Callbacks state observedAttributes = {
-    connected :: MCustomElement state,
-    disconnected :: MCustomElement state,
-    adopted :: MCustomElement state,
-    attributeChanged :: observedAttributes -> Maybe String -> Maybe String -> MCustomElement state
+    connected :: MCustomElement state Unit,
+    disconnected :: MCustomElement state Unit,
+    adopted :: MCustomElement state Unit,
+    attributeChanged :: observedAttributes -> Maybe String -> Maybe String -> MCustomElement state Unit
 }
+
+type RunMCustomElement = forall state. state -> MCustomElement state Unit -> Effect state
+runMCustomElement :: RunMCustomElement
+runMCustomElement state (MCustomElement m) = execStateT m state
+
 
 type Spec state observedAttributes = {
     initial :: state,
@@ -74,12 +85,14 @@ define name observedAttrsProxy spec =
             map (\attr -> Tuple (toString attr) attr) all
             # Map.fromFoldable
 
-        attributeChanged :: String -> Maybe String -> Maybe String -> MCustomElement state
+        attributeChanged :: String -> Maybe String -> Maybe String -> MCustomElement state Unit
         attributeChanged attrString o n =
             spec.callbacks.attributeChanged attribute o n
             where
+                attribute :: observedAttributes
                 attribute = Map.lookup attrString attributesByString # unsafePartial fromJust
 
+        wrappedSpec :: Spec state String
         wrappedSpec = spec { callbacks { attributeChanged = attributeChanged } }
      in
         define_ runMCustomElement name observedAttributes wrappedSpec
